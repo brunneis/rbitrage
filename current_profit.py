@@ -3,6 +3,7 @@
 
 import requests
 import time
+import datetime
 
 def get_trades_url(exchange, curr1, curr2):
     if exchange == "gdax":
@@ -22,18 +23,24 @@ def get_profit(deposit_fee=0,
     quantity *= buy_price
     obtained_crypto = - tx_wallet_fee + (quantity / buy_price) * (1 - buy_fee_ratio) - tx_exchange_fee
     obtained_fiat = obtained_crypto * sell_price * (1 - sell_fee_ratio) - withdraw_fee
-    return obtained_fiat - quantity
+    return quantity, obtained_fiat - quantity
                
 check = True
 
 while(check):
-    gdax_trades = requests.get(url=get_trades_url("gdax", "ltc", "eur")).json()
-    gdax_price = float(gdax_trades[0]['price'])
-    
-    kraken_trades = requests.get(url=get_trades_url("kraken", "ltc", "eur")).json()['result']['XLTCZEUR']
-    kraken_price = float(kraken_trades[-1][0])
+    try:
+        file = open("profit.csv", "a") 
 
-    profit = get_profit(buy_price=kraken_price, sell_price=gdax_price)
-    print("%.2f" % round(profit, 2))
+        gdax_trades = requests.get(url=get_trades_url("gdax", "ltc", "eur")).json()
+        gdax_price = float(gdax_trades[0]['price'])
+        
+        kraken_trades = requests.get(url=get_trades_url("kraken", "ltc", "eur")).json()['result']['XLTCZEUR']
+        kraken_price = float(kraken_trades[-1][0])
+
+        quantity, profit = get_profit(buy_price=kraken_price, sell_price=gdax_price)
+        file.write("%.2f;%s;%f;%f;%f\n" % (round(profit, 2), datetime.datetime.now(), kraken_price, gdax_price, quantity))
+        file.close()
+    except:
+        pass
 
     time.sleep(5)
