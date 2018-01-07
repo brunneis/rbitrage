@@ -16,7 +16,8 @@
 # -*- coding: utf-8 -*-
 
 import requests
-
+from time import gmtime, strftime
+import datetime
 
 def get_trades_url(exchange, curr1, curr2):
     """
@@ -26,7 +27,25 @@ def get_trades_url(exchange, curr1, curr2):
         return f'https://api.gdax.com/products/{curr1}-{curr2}/trades'
     elif exchange == 'kraken':
         return f'https://api.kraken.com/0/public/Trades?pair={curr1}{curr2}'
+    elif exchange == 'gatehub':
+        # TODO XRP/EUR ONLY
+        if curr1 == 'xrp' and curr2 == 'eur':
+            base_url = 'https://api.gatehub.net/rippledata/v2/exchanges/XRP/EUR%2Brhub8VRN55s94qWKDv6jmDy1pUykJzF3wq?descending=true&interval=15minute&start='
+            return base_url + strftime(
+                "%Y-%m-%dT%H:%M:%SZ",
+                gmtime((datetime.datetime.now() \
+                - datetime.timedelta(hours=12) \
+                - datetime.datetime.utcfromtimestamp(0)).total_seconds()))
 
+def get_gatehub_price(curr1, curr2):
+    """
+    Get the last trade price for the given currency tuple on GateHub
+    """
+    gatehub_trades = requests.get(url=get_trades_url(
+        'gatehub',
+        curr1,
+        curr2)).json()
+    return float(gatehub_trades['exchanges'][0]['close'])
 
 def get_kraken_price(curr1, curr2):
     """

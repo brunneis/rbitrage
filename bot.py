@@ -28,11 +28,19 @@ from arbitrage_common import *
 class WealthWatchbot(object):
     def __init__(self):
         self.users = {}
-        self.interval = 5
+
+        self.interval = {}
+        self.interval['ltc'] = 5
+        self.interval['xrp'] = 5
 
         self.ltc_conf = {
             'tx_wallet_fee': 0.001,
             'tx_exchange_fee': 0.001,
+        }
+
+        self.xrp_conf = {
+            'tx_wallet_fee': 0.00002,
+            'tx_exchange_fee': 0.00002,
         }
 
         logging.basicConfig(filename='bot.log',
@@ -69,31 +77,70 @@ class WealthWatchbot(object):
         _, profit = get_profit(**self.ltc_conf)
         fee = diff - profit
 
-        if profit > 1:
-            if profit > 3:
-                self.interval = 5
-            elif profit > 2:
-                self.interval = 30
-            else:
-                self.interval = 60
-            text = u"LTC/EUR 📈\n" \
-            + "Profit: %.2f€\n" % profit \
-            + "Diff: %.2f€\n" % diff \
-            + "Fee: %.2f€\n\n" % fee \
-            + "Kraken: %.2f€\n" % kraken_price \
-            + "GDAX: %.2f€" % gdax_price
+        # if profit > 4:
+        #     if profit > 7:
+        #         self.interval['ltc'] = 5
+        #     elif profit > 4:
+        #         self.interval['ltc'] = 30
+        #     else:
+        #         self.interval['ltc'] = 60
 
-            for chat_id in self.users.values():
-                self.bot.send_message(chat_id=chat_id,
-                                      text=text)
+        text = u"LTC/EUR 📈\n" \
+        + "Profit: %.2f€\n" % profit \
+        + "Diff: %.2f€\n" % diff \
+        + "Fee: %.2f€\n\n" % fee \
+        + "Kraken: %.2f€\n" % kraken_price \
+        + "GDAX: %.2f€" % gdax_price
+        print(text)
 
-    def alert_manager(self):
+        for chat_id in self.users.values():
+            self.bot.send_message(chat_id=chat_id,
+                                  text=text)
+
+    def watch_xrp_eur(self):
+        gatehub_price = get_gatehub_price("xrp", "eur")
+        kraken_price = get_kraken_price("xrp", "eur")
+        self.xrp_conf['buy_price'] = gatehub_price
+        self.xrp_conf['sell_price'] = kraken_price
+        diff = gatehub_price - kraken_price
+        _, profit = get_profit(**self.xrp_conf)
+        fee = diff - profit
+
+        # if profit > .05:
+        #     if profit > .1:
+        #         self.interval['xrp'] = 5
+        #     elif profit > .7:
+        #         self.interval['xrp'] = 30
+        #     else:
+        #         self.interval['xrp'] = 60
+
+        text = u"XRP/EUR 📈\n" \
+        + "Profit: %.2f€\n" % profit \
+        + "Diff: %.2f€\n" % diff \
+        + "Fee: %.2f€\n\n" % fee \
+        + "GateHub: %.2f€\n" % gatehub_price \
+        + "Kraken: %.2f€" % kraken_price
+        print(text)
+
+        for chat_id in self.users.values():
+            self.bot.send_message(chat_id=chat_id,
+                                  text=text)
+
+    def alert_manager_ltc(self):
         while(True):
             try:
                 self.watch_ltc_eur()
             except Exception as e:
                 print(e)
-            time.sleep(self.interval)
+            time.sleep(self.interval['ltc'])
+
+    def alert_manager_xrp(self):
+        while(True):
+            try:
+                self.watch_xrp_eur()
+            except Exception as e:
+                print(e)
+            time.sleep(self.interval['xrp'])
 
     def start_handler(self, bot, update):
         bot.send_message(chat_id=update.message.chat_id,
@@ -121,7 +168,8 @@ class WealthWatchbot(object):
 
         updater.start_polling()
 
-        Thread(target=self.alert_manager).start()
+        Thread(target=self.alert_manager_ltc).start()
+        Thread(target=self.alert_manager_xrp).start()
 
 
 if __name__ == "__main__":
